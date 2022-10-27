@@ -1,0 +1,26 @@
+/*En esta sección se declaran los datos del problema. La generalización del modelo 
+permite realizar el problema para valores diferentes tanto de la matriz de costes como de 
+las personas. Los datos plasmados a continuación corresponden con los datos del enunciado.*/
+
+data;
+
+set PARADAS := PARKING S1 S2 S3 COLEGIO;
+
+param costes : PARKING S1 S2 S3 COLEGIO :=
+PARKING 1000000 8 10 10 1000000
+S1 8 1000000 3 7 6
+S2 10 3 1000000 5 7
+S3 10 7 5 1000000 4
+COLEGIO 1000000 6 7 4 1000000;
+
+param personas_paradas :=
+PARKING 0
+S1 15
+S2 5
+S3 10
+COLEGIO 0;
+
+param personas_total := 30;
+param capacidad_bus := 20;
+
+end;

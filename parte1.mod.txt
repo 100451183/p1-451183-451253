@@ -1,0 +1,116 @@
+/*A continuación se implementa toda la modelización de la parte 1. El fichero
+con los datos (.data) se adjunta en un .txt por separado junto a este.*/
+
+/*Creación de parámetros*/
+set PARADAS;
+param costes {i in PARADAS, j in PARADAS};
+param personas_paradas {i in PARADAS};
+param personas_total;
+param capacidad_bus;
+
+/*Variables de decisión*/
+var destinos {i in PARADAS, j in PARADAS} binary;
+var flujo {i in PARADAS, j in PARADAS} integer, >= 0;
+
+/*Función objetivo*/
+minimize Profit: sum{i in PARADAS, j in PARADAS} (costes[i, j]*destinos[i,j]*5) + (sum{i in PARADAS} destinos["PARKING", i]*120);
+
+/*Restricciones*/
+
+#A cada parada llega 1 ruta.
+s.t. Llegadas_S1 : sum{i in PARADAS} destinos[i, "S1"] <= 1;
+s.t. Llegadas_S2 : sum{i in PARADAS} destinos[i, "S2"] <= 1;
+s.t. Llegadas_S3 : sum{i in PARADAS} destinos[i, "S3"] <= 1;
+
+#De cada parada sale sólo 1 ruta.
+s.t. Salidas_S1 : sum{i in PARADAS} destinos["S1", i] <= 1;
+s.t. Salidas_S2 : sum{i in PARADAS} destinos["S2", i] <= 1;
+s.t. Salidas_S3 : sum{i in PARADAS} destinos["S3", i] <= 1;
+
+#El número de rutas no supera el número de autobuses.
+s.t. Autobuses : sum{i in PARADAS} destinos["PARKING", i] <= 3;
+
+#Todas las rutas salen del parking y llegan al colegio.
+s.t. Rutas_totales : sum{i in PARADAS} destinos["PARKING", i] = sum{i in PARADAS} destinos[i, "COLEGIO"];
+
+#No se puede superar la capacidad del autobus al salir de una parada.
+s.t. Capacidad_S1 : sum{i in PARADAS} flujo[i, "S1"] <= capacidad_bus;
+s.t. Capacidad_S2 : sum{i in PARADAS} flujo[i, "S2"] <= capacidad_bus;
+s.t. Capacidad_S3 : sum{i in PARADAS} flujo[i, "S3"] <= capacidad_bus;
+
+#Los alumnos que salen de una parada deben ser los que entran mas los que estaban esperando.
+s.t. Flujo_S1 : sum{i in PARADAS} flujo["S1", i] - (sum{i in PARADAS} flujo[i, "S1"] + (sum{i in PARADAS} (destinos["S1", i] * personas_paradas[i]))) = 0;
+s.t. Flujo_S2 : sum{i in PARADAS} flujo["S2", i] - (sum{i in PARADAS} flujo[i, "S2"] + (sum{i in PARADAS} (destinos["S2", i] * personas_paradas[i]))) = 0;
+s.t. Flujo_S3 : sum{i in PARADAS} flujo["S3", i] - (sum{i in PARADAS} flujo[i, "S3"] + (sum{i in PARADAS} (destinos["S3", i] * personas_paradas[i]))) = 0;
+
+#Llegan 8 alumnos al colegio.
+s.t. Alumnos_llegada : sum{i in PARADAS} flujo[i, "COLEGIO"] = personas_total;
+
+#Debe salir mínimo un autobus.
+s.t. Min_autobus : sum{i in PARADAS} destinos["PARKING", i] >= 1;
+
+#No se pueden repetir paradas. (Se evitan los bucles).
+s.t. Bucle_P_S1 : destinos["PARKING", "S1"] + destinos["S1", "PARKING"] <= 1;
+s.t. Bucle_P_S2 : destinos["PARKING", "S2"] + destinos["S2", "PARKING"] <= 1;
+s.t. Bucle_P_S3 : destinos["PARKING", "S3"] + destinos["S3", "PARKING"] <= 1;
+s.t. Bucle_P_COL : destinos["PARKING", "COLEGIO"] + destinos["COLEGIO", "PARKING"] <= 1;
+
+s.t. Bucle_S1_S2 : destinos["S1", "S2"] + destinos["S2", "S1"] <= 1;
+s.t. Bucle_S1_S3 : destinos["S1", "S3"] + destinos["S3", "S1"] <= 1;
+s.t. Bucle_S1_COL : destinos["S1", "COLEGIO"] + destinos["COLEGIO", "S1"] <= 1;
+
+s.t. Bucle_S2_S3 : destinos["S2", "S3"] + destinos["S3", "S2"] <= 1;
+s.t. Bucle_S2_COL : destinos["S2", "COLEGIO"] + destinos["COLEGIO", "S2"] <= 1;
+
+s.t. Bucle_S3_COL : destinos["S3", "COLEGIO"] + destinos["COLEGIO", "S3"] <= 1;
+
+#Ninguna parada es el punto origen de una ruta.
+s.t. No_origen_S1: sum{i in PARADAS} destinos["S1", i] - sum{i in PARADAS} destinos[i, "S1"] = 0;
+s.t. No_origen_S2: sum{i in PARADAS} destinos["S2", i] - sum{i in PARADAS} destinos[i, "S2"] = 0;
+s.t. No_origen_S3: sum{i in PARADAS} destinos["S3", i] - sum{i in PARADAS} destinos[i, "S3"] = 0;
+
+#Del colegio no se llevan alumnos a otras paradas.
+s.t. Colegio_no_salen : sum{i in PARADAS} flujo["COLEGIO", i] = 0;
+
+#Del aparcamiento a la parada solo se recogen a los alumnos que hay en esta.
+s.t. Flujo_P_S1 : flujo["PARKING", "S1"] = destinos["PARKING", "S1"] * personas_paradas["S1"];
+s.t. Flujo_P_S2 : flujo["PARKING", "S2"] = destinos["PARKING", "S2"] * personas_paradas["S2"];
+s.t. Flujo_P_S3 : flujo["PARKING", "S3"] = destinos["PARKING", "S3"] * personas_paradas["S3"];
+
+
+#Control de flujo entre paradas. (Restringimos para que la matriz de flujo tenga valores coherentes).
+s.t. Flujo_S1_S1 : flujo["S1", "S1"] <= destinos["S1", "S1"] * 69;
+s.t. Flujo_S1_S1_2 : destinos["S1", "S1"] <= flujo["S1", "S1"];
+
+s.t. Flujo_S1_S2 : flujo["S1", "S2"] <= destinos["S1", "S2"] * 69;
+s.t. Flujo_S1_S2_2 : destinos["S1", "S2"] <= flujo["S1", "S2"];
+
+s.t. Flujo_S1_S3 : flujo["S1", "S3"] <= destinos["S1", "S3"] * 69;
+s.t. Flujo_S1_S3_2 : destinos["S1", "S3"] <= flujo["S1", "S3"];
+
+s.t. Flujo_S1_COL : flujo["S1", "COLEGIO"] <= destinos["S1", "COLEGIO"] * 69;
+
+s.t. Flujo_S2_S1 : flujo["S2", "S1"] <= destinos["S2", "S1"] * 69;
+s.t. Flujo_S2_S1_2 : destinos["S2", "S1"] <= flujo["S2", "S1"];
+
+s.t. Flujo_S2_S2 : flujo["S2", "S2"] <= destinos["S2", "S2"] * 69;
+s.t. Flujo_S2_S2_2 : destinos["S2", "S2"] <= flujo["S2", "S2"];
+
+s.t. Flujo_S2_S3 : flujo["S2", "S3"] <= destinos["S2", "S3"] * 69;
+s.t. Flujo_S2_S3_2 : destinos["S2", "S3"] <= flujo["S2", "S3"];
+
+s.t. Flujo_S2_COL : flujo["S2", "COLEGIO"] <= destinos["S2", "COLEGIO"] * 69;
+
+s.t. Flujo_S3_S1 : flujo["S3", "S1"] <= destinos["S3", "S1"] * 69;
+s.t. Flujo_S3_S1_2 : destinos["S3", "S1"] <= flujo["S3", "S1"];
+
+s.t. Flujo_S3_S2 : flujo["S3", "S2"] <= destinos["S3", "S2"] * 69;
+s.t. Flujo_S3_S2_2 : destinos["S3", "S2"] <= flujo["S3", "S2"];
+
+s.t. Flujo_S3_S3 : flujo["S3", "S3"] <= destinos["S3", "S3"] * 69;
+s.t. Flujo_S3_S3_2 : destinos["S3", "S3"] <= flujo["S3", "S3"];
+
+s.t. Flujo_S3_COL : flujo["S3", "COLEGIO"] <= destinos["S3", "COLEGIO"] * 69;
+
+#No se puede ir del parking al colegio directamente.
+s.t. No_parking_colegio : flujo["PARKING", "COLEGIO"] = 0;
