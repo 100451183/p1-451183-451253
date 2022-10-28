@@ -1,0 +1,42 @@
+/*Sección data para el ejercicio 2. El modelo es suficientemente general
+como para permitir modificar la matriz de asignaciones y la matriz de hermanos.
+Actualmente está establecido para el problema ejemplo. A1, A2 y A3 solo pueden 
+estar en S1. A4 y A5 pueden estar en cualquiera de las tres paradas. A6, A7 y A8
+solo peden estar en S3. Además A4 y A5 son hermanos.*/
+
+data;
+
+set PARADAS := PARKING S1 S2 S3 COLEGIO;
+set ALUMNOS := A1 A2 A3 A4 A5 A6 A7 A8;
+
+param costes : PARKING S1 S2 S3 COLEGIO :=
+PARKING 1000000 8 10 10 1000000
+S1 8 1000000 3 7 6
+S2 10 3 1000000 5 7
+S3 10 7 5 1000000 4
+COLEGIO 1000000 6 7 4 1000000;
+
+param asignaciones : PARKING S1 S2 S3 COLEGIO :=
+A1 0 1 0 0 0
+A2 0 1 0 0 0
+A3 0 1 0 0 0
+A4 0 1 1 1 0
+A5 0 1 1 1 0
+A6 0 0 0 1 0
+A7 0 0 0 1 0
+A8 0 1 0 1 0;
+
+param hermanos : A1 A2 A3 A4 A5 A6 A7 A8 :=
+A1 0 0 0 0 0 0 0 0
+A2 0 0 0 0 0 0 0 0
+A3 0 0 0 0 0 0 0 0
+A4 0 0 0 0 1 0 0 0
+A5 0 0 0 1 0 0 0 0
+A6 0 0 0 0 0 0 0 0
+A7 0 0 0 0 0 0 0 0
+A8 0 0 0 0 0 0 0 0;
+
+param personas_total := 8;
+param capacidad_bus := 4;
+
+end;
