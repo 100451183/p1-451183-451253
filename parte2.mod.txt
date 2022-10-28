@@ -1,0 +1,95 @@
+/*Declaración de sets y parámteros*/
+set PARADAS;
+set ALUMNOS;
+set RECOGIDAS_COL within PARADAS;
+set RECOGIDAS_PARK within PARADAS;
+set RECOGIDAS within PARADAS;
+set S1 within PARADAS;
+set S2 within PARADAS;
+set S3 within PARADAS;
+set PARKING within PARADAS;
+set COLEGIO within PARADAS;
+
+param costes {i in PARADAS, j in PARADAS};
+param asignaciones {i in ALUMNOS, j in PARADAS};
+param hermanos {i in ALUMNOS, j in ALUMNOS};
+param personas_total;
+param capacidad_bus;
+
+/*Variables de decisión*/
+var alumnos_paradas {i in ALUMNOS, j in PARADAS} binary;
+var destinos {i in PARADAS, j in PARADAS} binary;
+var flujo {i in PARADAS, j in PARADAS} integer, >= 0;
+
+/*Función objetivo*/
+minimize Profit {k in PARKING} : sum{i in PARADAS, j in PARADAS} (costes[i, j]*destinos[i,j]*5) + (sum{i in PARADAS} destinos[k, i]*120);
+
+/*Restricciones*/
+#A cada parada llega 1 ruta.
+s.t. Llegadas {j in RECOGIDAS} : sum{i in PARADAS} destinos[i, j] <= 1;
+
+#De cada parada sale sólo 1 ruta.
+s.t. Salidas {j in RECOGIDAS} : sum{i in PARADAS} destinos[j, i] <= 1;
+
+#El número de rutas no supera el número de autobuses.
+s.t. Autobuses {j in PARKING} : sum{i in PARADAS} destinos[j, i] <= 3;
+
+#Todas las rutas salen del parking y llegan al colegio.
+s.t. Rutas_totales {j in PARKING, k in COLEGIO} : sum{i in PARADAS} destinos[j, i] = sum{i in PARADAS} destinos[i, k];
+
+#No se puede superar la capacidad del autobus al salir de una parada.
+s.t. Capacidad {j in RECOGIDAS} : sum{i in PARADAS} flujo[i, j] <= capacidad_bus;
+
+#Llegan 8 alumnos al colegio.
+s.t. Alumnos_llegada {j in COLEGIO} : sum{i in PARADAS} flujo[i, j] = personas_total;
+
+#Debe salir mínimo un autobus.
+s.t. Min_autobus {j in PARKING} : sum{i in PARADAS} destinos[j, i] >= 1;
+
+#No se pueden repetir paradas. (Se evitan los bucles).
+s.t. Bucle {i in RECOGIDAS_COL, j in RECOGIDAS_PARK} : destinos[j, i] + destinos[i, j] <= 1;
+
+#Ninguna parada es el punto origen de una ruta.
+s.t. No_origen {j in RECOGIDAS} : sum{i in PARADAS} destinos[j, i] - sum{i in PARADAS} destinos[i, j] = 0;
+
+#Del colegio no se llevan alumnos a otras paradas.
+s.t. Colegio_no_salen {j in COLEGIO} : sum{i in PARADAS} flujo[j, i] = 0;
+
+/*La restricción a continuación engloba las restricciones 13 y 14 de la 
+modelización del ejercicio dos que se encuentra en la memoria*/
+
+#Control de flujo entre paradas. (Restringimos para que la matriz de flujo tenga valores coherentes).
+s.t. Flujo {i in RECOGIDAS, j in RECOGIDAS_COL} : flujo[i, j] <= destinos[i, j] * 69;
+s.t. Flujo_2 {i in RECOGIDAS, j in RECOGIDAS} : destinos[i, j] <= flujo[i, j];
+
+#No se puede ir del parking al colegio directamente.
+s.t. No_parking_colegio {i in PARKING, j in COLEGIO} : flujo[i, j] = 0;
+
+#Máximo 4 personas por parada.
+s.t. Max4 {j in RECOGIDAS} : sum{i in ALUMNOS} alumnos_paradas[i, j] <= 4;
+
+#8 personas en total en las paradas.
+s.t. Personas_esperando {j in S1, k in S2, z in S3} : (sum{i in ALUMNOS} alumnos_paradas[i, j]) + (sum{i in ALUMNOS} alumnos_paradas[i, k]) + (sum{i in ALUMNOS} alumnos_paradas[i, z]) = 8;
+
+#Las personas recogidas en la primera parada deben ser los que esperaban en ella.
+s.t. Recogidos {j in PARKING, k in RECOGIDAS_PARK} : flujo[j, k] <= sum{i in ALUMNOS} alumnos_paradas[i, k];
+
+/* La siguiente restricción engloba a las restricciones 17 y 18 de la 
+modelización del ejercicio 2 implantada en la memoria*/
+
+#Se establecen dos acotaciones para el flujo de las primeras paradas.
+s.t. Acotacion1_P {j in PARKING, k in RECOGIDAS_PARK} : destinos[j, k]*10 + (sum{i in ALUMNOS} alumnos_paradas[i, k]) - flujo[j, k] <= 10;
+s.t. Acotacion2_P {j in PARKING, k in RECOGIDAS_PARK} : flujo[j, k] <= destinos[j, k]*69;
+
+#Los alumnos que salen de una parada deben ser los que entran mas los que estaban esperando.
+s.t. Salen_S1_S1 {j in RECOGIDAS, k in RECOGIDAS} : destinos[j, k]*10 + (sum{i in ALUMNOS} alumnos_paradas[i, k]) + (sum{i in PARADAS} flujo[i, j]) - flujo[j, k] <= 10;
+
+#Cada bus lleva solo los alumnos que tenia en la parada anterior al colegio.
+s.t. Alumnos_S1_COLEGIO {j in RECOGIDAS, k in COLEGIO} : flujo[j, k] <= sum{i in PARADAS} flujo[i, j];
+
+#Cada alumno va solo a las paradas donde están asignados.
+s.t. Paradas_A1 {i in ALUMNOS, j in S1, k in S2, z in S3} : (asignaciones[i, j]*alumnos_paradas[i, j]) + (asignaciones[i, k]*alumnos_paradas[i, k]) + (asignaciones[i, z]*alumnos_paradas[i, z]) = 1;
+
+#Cada alumno debe ir a la misma parada que su herman@.
+s.t. Hermanos {i in ALUMNOS, j in ALUMNOS, k in PARADAS} :  (alumnos_paradas[i,k] - alumnos_paradas[j,k]) * hermanos[i,j] = 0;
+
